@@ -9,6 +9,7 @@
   "dependencies": {
     "@elysiajs/jwt": "^1.0.2",
     "@elysiajs/swagger": "^1.0.5",
+    "axios": "^1.13.4",
     "elysia": "^1.0.25"
   },
   "devDependencies": {
