@@ -1,0 +1,17 @@
+{
+  "name": "bun-jwt-server",
+  "version": "1.0.0",
+  "description": "Bun server with JWT authentication and Swagger",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@elysiajs/jwt": "^1.0.2",
+    "@elysiajs/swagger": "^1.0.5",
+    "elysia": "^1.0.25"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
