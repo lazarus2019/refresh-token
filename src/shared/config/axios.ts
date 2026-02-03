@@ -1,4 +1,8 @@
-let refreshTokenRequest: ReturnType<(typeof authApi)['refreshToken']> | null = null
+import axios, { HttpStatusCode } from "axios"
+import queryString from "query-string"
+import {  authEndpoint, apiAPIService } from "../api"
+
+let refreshTokenRequest: ReturnType<(typeof apiAPIService)['refreshToken']> | null = null
 
 const apiService = axios.create({
   baseURL: '/api/',
@@ -28,7 +32,7 @@ apiService.interceptors.response.use(
     console.log({ error })
     let refreshTokenSuccess = false
     const originalRequest = error.config
-    const isRefreshTokenError = error.config.url === authEndPoints.refreshToken()
+    const isRefreshTokenError = error.config.url === authEndpoint.refreshToken()
     const shouldRenewToken =
       error.response?.status === HttpStatusCode.Unauthorized && !originalRequest._retry
 
@@ -38,25 +42,25 @@ apiService.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        refreshTokenRequest = refreshTokenRequest ?? authApi.refreshToken()
+        refreshTokenRequest = refreshTokenRequest ?? apiAPIService.refreshToken()
         const response = await refreshTokenRequest
         refreshTokenSuccess = response.success
-      } catch (refreshError) {
+      } catch (_refreshError) {
         refreshTokenSuccess = false
       } finally {
         refreshTokenRequest = null
       }
 
       if (refreshTokenSuccess) return apiService(originalRequest)
-      authApi.redirectLogin()
+      apiAPIService.redirectLogin()
       return Promise.reject(error)
     }
 
     if (error.response?.status === HttpStatusCode.Forbidden)
-      window.location.href = paths.main.forbidden
+      window.location.href = '/forbidden'
 
     return Promise.reject(error)
   },
 )
 
-export default apiService
+export  {apiService}

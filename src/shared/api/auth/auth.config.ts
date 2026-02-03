@@ -1,0 +1,6 @@
+const authEndpoint = {
+    refreshToken: (originalUrl: string = globalThis.location.href) => `${originalUrl}/auth/refresh`,
+    login: 'auth/login'
+} as const
+
+export {authEndpoint}
