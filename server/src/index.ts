@@ -4,11 +4,59 @@ import { swagger } from "@elysiajs/swagger";
 import { cors } from "@elysiajs/cors";
 
 // In-memory user store (replace with database in production)
-const users = new Map<string, { id: string; username: string; password: string }>();
+const users = new Map<
+  string,
+  { id: string; username: string; password: string }
+>();
 const refreshTokens = new Set<string>();
 
 // Add a test user
 users.set("admin", { id: "1", username: "admin", password: "password123" });
+
+
+
+type ExpireMinute = `${number}m`;
+type ExpireHour = `${number}h`;
+type ExpireDay = `${number}d`;
+type ExpireWeek = `${number}w`;
+
+type ExpireTime = ExpireMinute | ExpireHour | ExpireDay | ExpireWeek;
+
+const cookieConfigs: Record<string, {
+  path: string,
+  exp: ExpireTime
+}> = {
+  accessToken: {
+    path: "/",
+    exp: "1d", // Access token expires in 1 day
+  },
+  refreshToken: {
+    path: "/auth/refresh", // only attach this cookie on prefix endpoint /auth/refresh
+    exp: "7d", // Refresh token expires in 7 days
+  },
+};
+
+const getExpiredTime = (time: ExpireTime) => {
+  const type: string = time.charAt(time.length - 1);
+  const value: number = Number(time.slice(0, -1));
+
+  switch (type) {
+    case "m":
+      return value * 60;
+    case "h":
+      return value * 60 * 60;
+    case "d":
+      return value * 60 * 60 * 24;
+    case "w":
+      return value * 60 * 60 * 24 * 7;
+    default:
+      return 60 * 60; // fallback to 1 hour
+  }
+};
+
+const ACCESS_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.accessToken.exp)
+const REFRESH_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.refreshToken.exp)
+
 
 const app = new Elysia()
   .use(
@@ -19,35 +67,42 @@ const app = new Elysia()
           version: "1.0.0",
           description: "API with login and refresh token endpoints",
         },
-        tags: [
-          { name: "Auth", description: "Authentication endpoints" },
-        ],
+        tags: [{ name: "Auth", description: "Authentication endpoints" }],
       },
-    })
+    }),
   )
   .use(
     cors({
       origin: "http://localhost:3000",
       credentials: true,
-    })
+    }),
   )
   .use(
     jwt({
       name: "accessJwt",
-      secret: process.env.ACCESS_TOKEN_SECRET || "access-secret-key-change-in-production",
-      exp: "1d", // Access token expires in 1 day
-    })
+      secret:
+        process.env.ACCESS_TOKEN_SECRET ||
+        "access-secret-key-change-in-production",
+      exp: cookieConfigs.accessToken.exp, // Access token expires in 1 day
+    }),
   )
   .use(
     jwt({
       name: "refreshJwt",
-      secret: process.env.REFRESH_TOKEN_SECRET || "refresh-secret-key-change-in-production",
-      exp: "7d", // Refresh token expires in 7 days
-    })
+      secret:
+        process.env.REFRESH_TOKEN_SECRET ||
+        "refresh-secret-key-change-in-production",
+      exp: cookieConfigs.refreshToken.exp, // Refresh token expires in 7 days
+    }),
   )
   .post(
     "/auth/login",
-    async ({ body, accessJwt, refreshJwt, cookie: { access_token, refresh_token } }) => {
+    async ({
+      body,
+      accessJwt,
+      refreshJwt,
+      cookie: { access_token, refresh_token },
+    }) => {
       const { username, password } = body;
 
       // Validate user credentials
@@ -81,8 +136,8 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 15 * 60, // 15 minutes
-        path: "/",
+        maxAge: ACCESS_TOKEN_EXPIRED_TIME, 
+        path: cookieConfigs.accessToken.path,
       });
 
       refresh_token.set({
@@ -90,8 +145,8 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        path: "/auth", // only attach this cookie on prefix endpoint /auth
+        maxAge: REFRESH_TOKEN_EXPIRED_TIME,
+        path: cookieConfigs.refreshToken.path,
       });
 
       return {
@@ -120,11 +175,15 @@ const app = new Elysia()
           },
         },
       },
-    }
+    },
   )
   .post(
     "/auth/refresh",
-    async ({ cookie: { access_token, refresh_token }, accessJwt, refreshJwt }) => {
+    async ({
+      cookie: { access_token, refresh_token },
+      accessJwt,
+      refreshJwt,
+    }) => {
       const refreshTokenValue = refresh_token.value as string | undefined;
 
       // Verify refresh token exists
@@ -172,8 +231,8 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 15 * 60, // 15 minutes
-        path: "/",
+        maxAge:ACCESS_TOKEN_EXPIRED_TIME,
+        path: cookieConfigs.accessToken.path,
       });
 
       refresh_token.set({
@@ -181,8 +240,8 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        path: "/",
+        maxAge: REFRESH_TOKEN_EXPIRED_TIME,
+        path: cookieConfigs.refreshToken.path,
       });
 
       return {
@@ -201,7 +260,7 @@ const app = new Elysia()
           },
         },
       },
-    }
+    },
   )
   .post(
     "/auth/logout",
@@ -233,7 +292,7 @@ const app = new Elysia()
           },
         },
       },
-    }
+    },
   )
   .get(
     "/auth/me",
@@ -283,13 +342,13 @@ const app = new Elysia()
           },
         },
       },
-    }
+    },
   )
   .listen(3001);
 
 console.log(
-  `🦊 Server is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Server is running at ${app.server?.hostname}:${app.server?.port}`,
 );
 console.log(
-  `📚 Swagger documentation available at http://localhost:${app.server?.port}/swagger`
+  `📚 Swagger documentation available at http://localhost:${app.server?.port}/swagger`,
 );

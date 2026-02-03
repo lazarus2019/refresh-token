@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "bun-server": "cd ./server && bun run src/index.ts",
+    "bun-server": "cd ./server && bun --hot run src/index.ts",
     "dev": "vite",
     "serve": "concurrently \"bun run bun-server\" \"bun run dev\"",
     "build": "tsc -b && vite build",
