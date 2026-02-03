@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { swagger } from "@elysiajs/swagger";
+import { cors } from "@elysiajs/cors";
 
 // In-memory user store (replace with database in production)
 const users = new Map<string, { id: string; username: string; password: string }>();
@@ -25,10 +26,16 @@ const app = new Elysia()
     })
   )
   .use(
+    cors({
+      origin: "http://localhost:3000",
+      credentials: true,
+    })
+  )
+  .use(
     jwt({
       name: "accessJwt",
       secret: process.env.ACCESS_TOKEN_SECRET || "access-secret-key-change-in-production",
-      exp: "15m", // Access token expires in 15 minutes
+      exp: "1d", // Access token expires in 1 day
     })
   )
   .use(
@@ -40,7 +47,7 @@ const app = new Elysia()
   )
   .post(
     "/auth/login",
-    async ({ body, accessJwt, refreshJwt }) => {
+    async ({ body, accessJwt, refreshJwt, cookie: { access_token, refresh_token } }) => {
       const { username, password } = body;
 
       // Validate user credentials
@@ -68,12 +75,29 @@ const app = new Elysia()
       // Store refresh token
       refreshTokens.add(refreshToken);
 
+      // Set HTTP-only cookies
+      access_token.set({
+        value: accessToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 15 * 60, // 15 minutes
+        path: "/",
+      });
+
+      refresh_token.set({
+        value: refreshToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        path: "/auth", // only attach this cookie on prefix endpoint /auth
+      });
+
       return {
         success: true,
         message: "Login successful",
         data: {
-          accessToken,
-          refreshToken,
           user: {
             id: user.id,
             username: user.username,
@@ -100,11 +124,11 @@ const app = new Elysia()
   )
   .post(
     "/auth/refresh",
-    async ({ body, accessJwt, refreshJwt }) => {
-      const { refreshToken } = body;
+    async ({ cookie: { access_token, refresh_token }, accessJwt, refreshJwt }) => {
+      const refreshTokenValue = refresh_token.value as string | undefined;
 
-      // Verify refresh token exists in store
-      if (!refreshTokens.has(refreshToken)) {
+      // Verify refresh token exists
+      if (!refreshTokenValue || !refreshTokens.has(refreshTokenValue)) {
         return {
           success: false,
           message: "Invalid refresh token",
@@ -112,10 +136,12 @@ const app = new Elysia()
       }
 
       // Verify and decode refresh token
-      const payload = await refreshJwt.verify(refreshToken);
+      const payload = await refreshJwt.verify(refreshTokenValue);
       if (!payload) {
         // Remove invalid token from store
-        refreshTokens.delete(refreshToken);
+        refreshTokens.delete(refreshTokenValue);
+        refresh_token.remove();
+        access_token.remove();
         return {
           success: false,
           message: "Invalid or expired refresh token",
@@ -137,22 +163,34 @@ const app = new Elysia()
       });
 
       // Remove old refresh token and add new one
-      refreshTokens.delete(refreshToken);
+      refreshTokens.delete(refreshTokenValue);
       refreshTokens.add(newRefreshToken);
+
+      // Set new HTTP-only cookies
+      access_token.set({
+        value: newAccessToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 15 * 60, // 15 minutes
+        path: "/",
+      });
+
+      refresh_token.set({
+        value: newRefreshToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        path: "/",
+      });
 
       return {
         success: true,
         message: "Token refreshed successfully",
-        data: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
-        },
       };
     },
     {
-      body: t.Object({
-        refreshToken: t.String({ minLength: 1 }),
-      }),
       detail: {
         tags: ["Auth"],
         summary: "Refresh access token",
@@ -167,11 +205,17 @@ const app = new Elysia()
   )
   .post(
     "/auth/logout",
-    async ({ body }) => {
-      const { refreshToken } = body;
+    async ({ cookie: { access_token, refresh_token } }) => {
+      const refreshTokenValue = refresh_token.value as string | undefined;
 
       // Remove refresh token from store
-      refreshTokens.delete(refreshToken);
+      if (refreshTokenValue) {
+        refreshTokens.delete(refreshTokenValue);
+      }
+
+      // Clear cookies
+      access_token.remove();
+      refresh_token.remove();
 
       return {
         success: true,
@@ -179,9 +223,6 @@ const app = new Elysia()
       };
     },
     {
-      body: t.Object({
-        refreshToken: t.String({ minLength: 1 }),
-      }),
       detail: {
         tags: ["Auth"],
         summary: "User logout",
@@ -196,16 +237,15 @@ const app = new Elysia()
   )
   .get(
     "/auth/me",
-    async ({ headers, accessJwt }) => {
-      const authHeader = headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    async ({ cookie: { access_token }, accessJwt }) => {
+      const token = access_token.value as string | undefined;
+      if (!token) {
         return {
           success: false,
           message: "No token provided",
         };
       }
 
-      const token = authHeader.split(" ")[1];
       const payload = await accessJwt.verify(token);
 
       if (!payload) {

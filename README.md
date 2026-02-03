@@ -16,6 +16,10 @@ nix develop # setup environment for current shell section
 bun run serve
 ```
 
+Access to client app: http://localhost:3000
+
+Access to server api docs: http://localhost:3001/swagger
+
 ## Refresh token flow
 
 Not sure, just place the preview refresh token flow here (on client)
