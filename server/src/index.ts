@@ -26,10 +26,10 @@ const cookieConfigs: Record<string, {
 }> = {
   accessToken: {
     path: "/",
-    exp: "1d", // Access token expires in 1 day
+    exp: "1m", // Access token expires in 1 day
   },
   refreshToken: {
-    path: "/auth/refresh", // only attach this cookie on prefix endpoint /auth/refresh
+    path: "/api/auth/refresh", // only attach this cookie on prefix endpoint /auth/refresh
     exp: "7d", // Refresh token expires in 7 days
   },
 };
