@@ -28,8 +28,16 @@ const logout = async ()=>{
     return data.data
 }
 
+const getMe = async ()=>{
+    const data = await apiService.get(authEndpoint.getMe)
+    console.log("🚀 ~ getMe ~ data:", data)
+
+    return data.data
+}
+
 export const apiAPIService = {
     refreshToken,
     redirectLogin,
-    logout
+    logout,
+    getMe
 }
