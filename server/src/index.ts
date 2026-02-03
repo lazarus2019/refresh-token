@@ -13,8 +13,6 @@ const refreshTokens = new Set<string>();
 // Add a test user
 users.set("admin", { id: "1", username: "admin", password: "password123" });
 
-
-
 type ExpireMinute = `${number}m`;
 type ExpireHour = `${number}h`;
 type ExpireDay = `${number}d`;
@@ -102,12 +100,14 @@ const app = new Elysia()
       accessJwt,
       refreshJwt,
       cookie: { access_token, refresh_token },
+      set,
     }) => {
       const { username, password } = body;
 
       // Validate user credentials
       const user = users.get(username);
       if (!user || user.password !== password) {
+        set.status = 401;
         return {
           success: false,
           message: "Invalid username or password",
@@ -183,11 +183,13 @@ const app = new Elysia()
       cookie: { access_token, refresh_token },
       accessJwt,
       refreshJwt,
+      set,
     }) => {
       const refreshTokenValue = refresh_token.value as string | undefined;
 
       // Verify refresh token exists
       if (!refreshTokenValue || !refreshTokens.has(refreshTokenValue)) {
+        set.status = 401;
         return {
           success: false,
           message: "Invalid refresh token",
@@ -201,6 +203,7 @@ const app = new Elysia()
         refreshTokens.delete(refreshTokenValue);
         refresh_token.remove();
         access_token.remove();
+        set.status = 401;
         return {
           success: false,
           message: "Invalid or expired refresh token",
@@ -296,9 +299,10 @@ const app = new Elysia()
   )
   .get(
     "/auth/me",
-    async ({ cookie: { access_token }, accessJwt }) => {
+    async ({ cookie: { access_token }, accessJwt, set }) => {
       const token = access_token.value as string | undefined;
       if (!token) {
+        set.status = 401;
         return {
           success: false,
           message: "No token provided",
@@ -308,6 +312,7 @@ const app = new Elysia()
       const payload = await accessJwt.verify(token);
 
       if (!payload) {
+        set.status = 401;
         return {
           success: false,
           message: "Invalid or expired token",
@@ -316,6 +321,7 @@ const app = new Elysia()
 
       const user = users.get(payload.username as string);
       if (!user) {
+        set.status = 404;
         return {
           success: false,
           message: "User not found",
