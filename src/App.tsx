@@ -1,11 +1,9 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import reactLogo from './assets/react.svg'
 import { apiAPIService } from './shared/api'
+import viteLogo from '/vite.svg'
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
@@ -20,7 +18,13 @@ function App() {
       <h1>Vite + React</h1>
       <div className="card">
         <button onClick={apiAPIService.redirectLogin}>
-          count is {count}
+          Login
+        </button>
+        <button onClick={apiAPIService.refreshToken}>
+          Refresh token
+        </button>
+        <button onClick={apiAPIService.logout}>
+          Logout
         </button>
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR

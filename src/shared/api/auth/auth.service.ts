@@ -22,7 +22,14 @@ const redirectLogin =async ()=> {
     return data.data
 }
 
+const logout = async ()=>{
+    const data = await apiService.post(authEndpoint.logout)
+
+    return data.data
+}
+
 export const apiAPIService = {
     refreshToken,
-    redirectLogin
+    redirectLogin,
+    logout
 }
