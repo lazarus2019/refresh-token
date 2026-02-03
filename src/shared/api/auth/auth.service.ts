@@ -7,7 +7,7 @@ type Response = AxiosResponse<{
 }>
 
 const refreshToken = async (): Promise<Response>=>{
-    const data = await apiService.get(authEndpoint.refreshToken())
+    const data = await apiService.post(authEndpoint.refreshToken())
 
     return data.data
 }
