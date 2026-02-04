@@ -28,19 +28,22 @@ apiService.interceptors.response.use(
     return response.data
   },
   async function (error) {
+    console.log("🚀 ~ error:", error)
     //TODO: handle error 404, 500
-    console.log({ error })
     let refreshTokenSuccess = false
     const originalRequest = error.config
+    console.log("🚀 ~ originalRequest:", originalRequest)
     const isRefreshTokenError = error.config.url === authEndpoint.refreshToken()
     const shouldRenewToken =
       error.response?.status === HttpStatusCode.Unauthorized && !originalRequest._retry
+    console.log("🚀 ~ shouldRenewToken:", shouldRenewToken)
 
     if (isRefreshTokenError) return Promise.reject(error)
 
     if (shouldRenewToken) {
       originalRequest._retry = true
-
+      
+      console.log("🚀 ~ refreshTokenRequest:", refreshTokenRequest)
       try {
         refreshTokenRequest = refreshTokenRequest ?? apiAPIService.refreshToken()
         const response = await refreshTokenRequest
@@ -51,6 +54,7 @@ apiService.interceptors.response.use(
         refreshTokenRequest = null
       }
 
+        console.log("🚀 ~ refreshTokenSuccess:", refreshTokenSuccess)
       if (refreshTokenSuccess) return apiService(originalRequest)
       apiAPIService.redirectLogin()
       return Promise.reject(error)

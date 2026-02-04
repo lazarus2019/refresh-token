@@ -1,9 +1,35 @@
+import { useQuery } from '@tanstack/react-query'
 import './App.css'
 import reactLogo from './assets/react.svg'
-import { apiAPIService } from './shared/api'
+import { apiAPIService, userAPIService } from './shared/api'
 import viteLogo from '/vite.svg'
 
 function App() {
+  const {data: userList1} = useQuery({
+    queryKey: ['user', 'list'],
+    queryFn: () => userAPIService.getList()
+  })
+  const {data: userList2} = useQuery({
+    queryKey: ['user', 'list'],
+    queryFn: () => userAPIService.getList()
+  })
+  const {data: userList3} = useQuery({
+    queryKey: ['user', 'list'],
+    queryFn: () => userAPIService.getList()
+  })
+  const {data: userList4} = useQuery({
+    queryKey: ['user', 'list'],
+    queryFn: () => userAPIService.getList()
+  })
+
+
+  // test request many apis
+  // expect: deduplicate api refresh token, retry the failed requests after refresh token
+  // useEffect(()=>{
+  //   apiAPIService.getMe()
+  //   apiAPIService.getMe()
+  //   apiAPIService.getMe()
+  // }, [])
 
   return (
     <>
