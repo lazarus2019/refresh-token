@@ -12,6 +12,7 @@ const refreshTokens = new Set<string>();
 
 // Add a test user
 users.set("admin", { id: "1", username: "admin", password: "password123" });
+users.set("guest", { id: "2", username: "guest", password: "guestpassword" });
 
 type ExpireMinute = `${number}m`;
 type ExpireHour = `${number}h`;
@@ -20,10 +21,13 @@ type ExpireWeek = `${number}w`;
 
 type ExpireTime = ExpireMinute | ExpireHour | ExpireDay | ExpireWeek;
 
-const cookieConfigs: Record<string, {
-  path: string,
-  exp: ExpireTime
-}> = {
+const cookieConfigs: Record<
+  string,
+  {
+    path: string;
+    exp: ExpireTime;
+  }
+> = {
   accessToken: {
     path: "/",
     exp: "1m", // Access token expires in 1 day
@@ -52,9 +56,10 @@ const getExpiredTime = (time: ExpireTime) => {
   }
 };
 
-const ACCESS_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.accessToken.exp)
-const REFRESH_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.refreshToken.exp)
-
+const ACCESS_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.accessToken.exp);
+const REFRESH_TOKEN_EXPIRED_TIME = getExpiredTime(
+  cookieConfigs.refreshToken.exp,
+);
 
 const app = new Elysia()
   .use(
@@ -136,7 +141,7 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: ACCESS_TOKEN_EXPIRED_TIME, 
+        maxAge: ACCESS_TOKEN_EXPIRED_TIME,
         path: cookieConfigs.accessToken.path,
       });
 
@@ -234,7 +239,7 @@ const app = new Elysia()
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge:ACCESS_TOKEN_EXPIRED_TIME,
+        maxAge: ACCESS_TOKEN_EXPIRED_TIME,
         path: cookieConfigs.accessToken.path,
       });
 
@@ -345,6 +350,50 @@ const app = new Elysia()
         responses: {
           200: {
             description: "User information retrieved",
+          },
+        },
+      },
+    },
+  )
+  .get(
+    "/users",
+    async ({ cookie: { access_token }, accessJwt, set }) => {
+      const token = access_token.value as string | undefined;
+      if (!token) {
+        set.status = 401;
+        return {
+          success: false,
+          message: "No token provided",
+        };
+      }
+
+      const payload = await accessJwt.verify(token);
+
+      if (!payload) {
+        set.status = 401;
+        return {
+          success: false,
+          message: "Invalid or expired token",
+        };
+      }
+
+      return {
+        success: true,
+        data: users.forEach((user) => ({
+          id: user.id,
+          username: user.username,
+        })),
+      };
+    },
+    {
+      detail: {
+        tags: ["Users"],
+        summary: "Get list users",
+        description: "Retrieve a list of all users",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: "List of users retrieved",
           },
         },
       },
