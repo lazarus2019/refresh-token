@@ -4,6 +4,47 @@ import reactLogo from './assets/react.svg'
 import { apiAPIService, userAPIService } from './shared/api'
 import viteLogo from '/vite.svg'
 
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
+
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
+): void => {
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
+    )
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
+}
+
+const schedule = Schedule.recurs(5)
+
+log(schedule)
+/*
+Output:
+#1: 0ms < recurs
+#2: 0ms
+#3: 0ms
+#4: 0ms
+#5: 0ms
+(end)
+*/
+
+
 function App() {
   const {data: userList1} = useQuery({
     queryKey: ['user', 'list'],
