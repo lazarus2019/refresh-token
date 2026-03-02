@@ -1,6 +1,12 @@
 # Question:
 ![Refresh token issue requests](./refresh_token_issue_requests.png)
 ![Refresh token issue waterfalls](./refresh_token_issue_waterfalls.png)
+
+- the first request get users failed 401 then it request refresh token for it, during the time await for the refresh token response. I requested 9 more requests, 4 of them is during the await time, 5 others after received response from refresh token request. 
+- then first 4 requests will be triggered to retry, but the 5 others must await the new refresh token request to response and then retry.
+- why it work like that and how to I reduce/deduplicate the request refresh token when it just renew? 
+- explain like a senior frontend developer with best javascript practice
+
 ```typescript
 apiService.interceptors.response.use(
   function (response) {
@@ -48,11 +54,6 @@ apiService.interceptors.response.use(
   },
 )
 ```
-
-- the first request get users failed 401 then it request refresh token for it, during the time await for the refresh token response. I requested 9 more requests, 4 of them is during the await time, 5 others after received response from refresh token request. 
-- then first 4 requests will be triggered to retry, but the 5 others must await the new refresh token request to response and then retry.
-- why it work like that and how to I reduce/deduplicate the request refresh token when it just renew? 
-- explain like a senior frontend developer with best javascript practice
 
 # Answer:
 Alright, this is a **classic token-refresh race condition**, and your screenshots + interceptor code make it very clear what’s happening. I’ll walk through **why it behaves exactly like this**, then show you the **senior-level fix pattern** that stops the refresh storm and deduplicates retries.
