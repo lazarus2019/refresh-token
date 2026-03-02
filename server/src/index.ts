@@ -30,7 +30,7 @@ const cookieConfigs: Record<
 > = {
   accessToken: {
     path: "/",
-    exp: "1m", // Access token expires in 1 day
+    exp: "1d", // Access token expires in 1 day
   },
   refreshToken: {
     path: "/api/auth/refresh", // only attach this cookie on prefix endpoint /auth/refresh
@@ -56,10 +56,11 @@ const getExpiredTime = (time: ExpireTime) => {
   }
 };
 
-const ACCESS_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.accessToken.exp);
-const REFRESH_TOKEN_EXPIRED_TIME = getExpiredTime(
-  cookieConfigs.refreshToken.exp,
-);
+const ACCESS_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.accessToken.exp)
+const REFRESH_TOKEN_EXPIRED_TIME = getExpiredTime(cookieConfigs.refreshToken.exp)
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 
 const app = new Elysia()
   .use(
@@ -107,6 +108,7 @@ const app = new Elysia()
       cookie: { access_token, refresh_token },
       set,
     }) => {
+      await delay(2000)
       const { username, password } = body;
 
       // Validate user credentials
@@ -190,9 +192,11 @@ const app = new Elysia()
       refreshJwt,
       set,
     }) => {
+      await delay(5000)
       const refreshTokenValue = refresh_token.value as string | undefined;
 
       // Verify refresh token exists
+      console.log("🚀 ~ refreshTokens:", refreshTokens)
       if (!refreshTokenValue || !refreshTokens.has(refreshTokenValue)) {
         set.status = 401;
         return {
@@ -305,6 +309,7 @@ const app = new Elysia()
   .get(
     "/auth/me",
     async ({ cookie: { access_token }, accessJwt, set }) => {
+      await delay(1000)
       const token = access_token.value as string | undefined;
       if (!token) {
         set.status = 401;
